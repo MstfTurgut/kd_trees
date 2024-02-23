@@ -8,7 +8,6 @@ public class KdTree {
     private int size;
 
     private static class Node {
-
         private final Point2D point;
         private Node left, right;
 
@@ -29,122 +28,123 @@ public class KdTree {
         return size;
     }
 
+    // Insert a point into the KdTree
     public void insert(Point2D p) {
-        if (p == null) throw new IllegalArgumentException();
+        if (p == null) {
+            throw new IllegalArgumentException("Point cannot be null");
+        }
         root = insert(root, p, 0);
     }
 
-    private Node insert(Node r, Point2D p, int level) {
-        if (r == null) {
+    // Helper method for insertion
+    private Node insert(Node node, Point2D point, int level) {
+        if (node == null) {
             size++;
-            return new Node(p);
+            return new Node(point);
         }
 
-        int cmp;
+        // Alternating comparison based on level
+        int cmp = (level % 2 == 0) ? Double.compare(point.x(), node.point.x()) : Double.compare(point.y(), node.point.y());
 
-        if (level % 2 == 0) cmp = Double.compare(p.x(), r.point.x());
-        else               cmp = Double.compare(p.y(), r.point.y());
-
-        if      (cmp < 0) r.left  = insert(r.left,  p, level + 1);
-        else if (cmp > 0)          r.right = insert(r.right, p, level + 1);
-        else {
-            if (level % 2 == 0) {
-                if(p.y() == r.point.y()) return r;
-                else  r.right = insert(r.right, p, level + 1);
-            } else {
-                if(p.x() == r.point.x()) return r;
-                else  r.right = insert(r.right, p, level + 1);
+        if (cmp < 0) {
+            node.left = insert(node.left, point, level + 1);
+        } else if (cmp > 0) {
+            node.right = insert(node.right, point, level + 1);
+        } else {
+            // Handle case when point is already in the tree
+            if ((level % 2 == 0 && point.y() != node.point.y()) || (level % 2 != 0 && point.x() != node.point.x())) {
+                node.right = insert(node.right, point, level + 1);
             }
         }
-        return r;
+        return node;
     }
 
+    // Check if the KdTree contains a given point
     public boolean contains(Point2D p) {
-        if (p == null) throw new IllegalArgumentException();
+        if (p == null) {
+            throw new IllegalArgumentException("Point cannot be null");
+        }
         return contains(root, p, 0);
     }
 
-    private boolean contains(Node r, Point2D p, int level) {
-        if (r == null) return false;
+    // Helper method for containment check
+    private boolean contains(Node node, Point2D point, int level) {
+        if (node == null) {
+            return false;
+        }
 
-        int cmp;
-        if (level % 2 == 0) cmp = Double.compare(p.x(), r.point.x());
-        else               cmp = Double.compare(p.y(), r.point.y());
+        int cmp = (level % 2 == 0) ? Double.compare(point.x(), node.point.x()) : Double.compare(point.y(), node.point.y());
 
-        if      (cmp < 0) return contains(r.left, p, level + 1);
-        else if (cmp > 0) return contains(r.right, p, level + 1);
-        else {
-            // if the x values are equal we need to check the y values and vice versa
-            // if both are equal then it means we found it
-            // in the insert method if the checked x or y values are equal we have moved right
-            // hence we need to keep looking to the right if the one value is equal and other is not
-            if (level % 2 == 0) {
-                if(p.y() == r.point.y()) return true;
-                else  return contains(r.right, p, level + 1);
+        if (cmp < 0) {
+            return contains(node.left, point, level + 1);
+        } else if (cmp > 0) {
+            return contains(node.right, point, level + 1);
+        } else {
+            // Handle case when x or y values are equal
+            if ((level % 2 == 0 && point.y() == node.point.y()) || (level % 2 != 0 && point.x() == node.point.x())) {
+                return true;
             } else {
-                if(p.x() == r.point.x()) return true;
-                else  return contains(r.right, p, level + 1);
+                return contains(node.right, point, level + 1);
             }
         }
     }
 
+    // Iterable of points within a given rectangle
     public Iterable<Point2D> range(RectHV rect) {
-        if (rect == null) throw new IllegalArgumentException();
-
+        if (rect == null) {
+            throw new IllegalArgumentException("Rectangle cannot be null");
+        }
 
         LinkedList<Point2D> list = new LinkedList<>();
         range(root, rect, 0, list);
         return list;
-
     }
 
-    private void range(Node r, RectHV rect, int level, LinkedList<Point2D> list) {
-
-        if (r == null) {
+    // Helper method for range search
+    private void range(Node node, RectHV rect, int level, LinkedList<Point2D> list) {
+        if (node == null) {
             return;
         }
 
-        // check if point is in the rectangle if it is, add to the list
-        // rect.contains(p)
-
-        if (rect.contains(r.point)) {
-            list.add(new Point2D(r.point.x(), r.point.y()));
+        if (rect.contains(node.point)) {
+            list.add(new Point2D(node.point.x(), node.point.y()));
         }
-
-        // recursive
-        // check if splitting line intersects the rectangle if it is, check both sides
-        // if not check which side is rectangle in , go that side.
 
         if (level % 2 == 0) {
-            if (rect.xmin() < r.point.x() && rect.xmax() > r.point.x()) {
-                range(r.left, rect, level + 1, list);
-                range(r.right, rect, level + 1, list);
-            } else if (rect.xmax() <= r.point.x()) {
-                range(r.left, rect, level + 1, list);
+            if (rect.xmin() < node.point.x() && rect.xmax() > node.point.x()) {
+                range(node.left, rect, level + 1, list);
+                range(node.right, rect, level + 1, list);
+            } else if (rect.xmax() <= node.point.x()) {
+                range(node.left, rect, level + 1, list);
             } else {
-                range(r.right, rect, level + 1, list);
+                range(node.right, rect, level + 1, list);
             }
         } else {
-            if (rect.ymin() < r.point.y() && rect.ymax() > r.point.y()) {
-                range(r.left, rect, level + 1, list);
-                range(r.right, rect, level + 1, list);
-            } else if (rect.ymax() <= r.point.y()) {
-                range(r.left, rect, level + 1, list);
+            if (rect.ymin() < node.point.y() && rect.ymax() > node.point.y()) {
+                range(node.left, rect, level + 1, list);
+                range(node.right, rect, level + 1, list);
+            } else if (rect.ymax() <= node.point.y()) {
+                range(node.left, rect, level + 1, list);
             } else {
-                range(r.right, rect, level + 1, list);
+                range(node.right, rect, level + 1, list);
             }
         }
-
     }
 
+    // Find the nearest point to a given query point
     public Point2D nearest(Point2D p) {
-        if (p == null) throw new IllegalArgumentException();
-        if (isEmpty()) return null;
+        if (p == null) {
+            throw new IllegalArgumentException("Point cannot be null");
+        }
+        if (isEmpty()) {
+            return null;
+        }
 
         Point2D champion = new Point2D(Double.MAX_VALUE, Double.MAX_VALUE);
         return nearest(root, p, champion, 0, 0.0, 0.0, 1.0, 1.0);
     }
 
+    // Helper method for nearest point search
     private Point2D nearest(Node r, Point2D p, Point2D champion, int level, double minX, double minY, double maxX, double maxY) {
         if(r == null) return champion;
 
@@ -204,42 +204,42 @@ public class KdTree {
         // update the champion
     }
 
+    // Draw all points in the KdTree
     public void draw() {
         draw(root);
     }
 
-    private void draw(Node r) {
-        if (r != null) {
-            draw(r.left);
-            r.point.draw();
-            draw(r.right);
+    // Helper method for drawing points
+    private void draw(Node node) {
+        if (node != null) {
+            draw(node.left);
+            node.point.draw();
+            draw(node.right);
         }
     }
 
-
     public static void main(String[] args) {
-
+        // Example usage in the main method
         KdTree kdTree = new KdTree();
 
         kdTree.insert(new Point2D(0.6, 0.0));
         kdTree.insert(new Point2D(0.0, 0.0));
         kdTree.insert(new Point2D(0.0, 0.0));
 
+        System.out.println("Does pointSet contain (0.4, 0.6): " + kdTree.contains(new Point2D(0.4, 0.6)));
+        System.out.println("Size of pointSet: " + kdTree.size());
 
-        System.out.println("Does pointSet contains (0.4, 0.6) : " + kdTree.contains(new Point2D(0.4 , 0.6)));
-        System.out.println("Size of pointSet : " + kdTree.size());
-        Point2D nearest = kdTree.nearest(new Point2D(0.1 , 0.2));
-        System.out.println("Nearest point to the point (0.1, 0.2) is : (" + nearest.x() + ", " + nearest.y() + ")");
+        Point2D nearestPoint = kdTree.nearest(new Point2D(0.1, 0.2));
+        System.out.println("Nearest point to the point (0.1, 0.2) is: (" + nearestPoint.x() + ", " + nearestPoint.y() + ")");
 
-        RectHV rectHV = new RectHV(0.5 , 0.0  , 1.0 , 0.5);
-        LinkedList<Point2D> list = (LinkedList<Point2D>) kdTree.range(rectHV);
-        System.out.println("Points in the rectangle on right bottom quarter are : ");
+        RectHV rectHV = new RectHV(0.5, 0.0, 1.0, 0.5);
+        LinkedList<Point2D> pointList = (LinkedList<Point2D>) kdTree.range(rectHV);
+        System.out.println("Points in the rectangle on the bottom right quarter are:");
 
-        for(Point2D p : list) {
+        for (Point2D p : pointList) {
             System.out.println("(" + p.x() + ", " + p.y() + ")");
         }
 
         kdTree.draw();
     }
-
 }
